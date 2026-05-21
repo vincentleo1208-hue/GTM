@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -438,13 +439,41 @@ function handleFileSelect(e){
   document.getElementById('fileInfo').style.display='flex';
   document.getElementById('uploadZone').classList.add('has-file');
   
-  const reader=new FileReader();
-  reader.onload=function(ev){
-    resumeText=ev.target.result;
-    document.getElementById('resumeInput').value=resumeText;
-    document.getElementById('resumeCharCt').textContent=resumeText.length+' characters';
-  };
-  reader.readAsText(file);
+  // Parse file based on type
+  if(file.name.endsWith('.docx')){
+    // Use mammoth.js to extract text from DOCX
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const arrayBuffer=ev.target.result;
+      mammoth.extractRawText({arrayBuffer: arrayBuffer})
+        .then(function(result){
+          resumeText=result.value;
+          // Sanitize and truncate if needed (max 50k chars)
+          resumeText=resumeText.trim().substring(0, 50000);
+          document.getElementById('resumeInput').value=resumeText;
+          document.getElementById('resumeCharCt').textContent=resumeText.length+' characters';
+        })
+        .catch(function(err){
+          showErr('Failed to parse DOCX: '+err.message);
+          clearFile();
+        });
+    };
+    reader.readAsArrayBuffer(file);
+  } else if(file.name.endsWith('.pdf')){
+    showErr('PDF parsing requires additional setup. Please convert to DOCX or TXT.');
+    clearFile();
+  } else {
+    // Plain text file
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      resumeText=ev.target.result;
+      // Sanitize and truncate if needed (max 50k chars)
+      resumeText=resumeText.trim().substring(0, 50000);
+      document.getElementById('resumeInput').value=resumeText;
+      document.getElementById('resumeCharCt').textContent=resumeText.length+' characters';
+    };
+    reader.readAsText(file);
+  }
 }
 
 function clearFile(){
