@@ -855,6 +855,9 @@ function extractJSON(raw){
   return JSON.parse(raw);
 }
 
+// Debug mode: set to true to preview prompts before sending
+const DEBUG_PREVIEW = false;
+
 async function analyze(){
   const key=localStorage.getItem('jdi_k_'+prov);
   if(!key){openModal();return;}
@@ -870,10 +873,16 @@ async function analyze(){
     
     // Step 1: Company intelligence (JD only, no resume needed)
     setSt('Step 1/6: Extracting company intelligence...');
+    let prompt1 = buildPrompt(jd,'','jd_company');
+    if(DEBUG_PREVIEW){
+      console.log('=== PROMPT 1 (Company Intelligence) ===');
+      console.log(prompt1);
+      if(!confirm('Preview Prompt 1 above in console. Continue?')) throw new Error('Cancelled by user');
+    }
     let txt;
-    if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,'','jd_company'),key);
-    else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,'','jd_company'),key);
-    else txt=await callGemini(buildPrompt(jd,'','jd_company'),key);
+    if(prov==='anthropic') txt=await callAnthropic(prompt1,key);
+    else if(prov==='openai') txt=await callOpenAI(prompt1,key);
+    else txt=await callGemini(prompt1,key);
     Object.assign(results,extractJSON(txt));
     
     // Small delay between calls to avoid rate limiting
@@ -881,9 +890,15 @@ async function analyze(){
     
     // Step 2: Keywords (JD only)
     setSt('Step 2/6: Extracting keywords...');
-    if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,'','jd_keywords'),key);
-    else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,'','jd_keywords'),key);
-    else txt=await callGemini(buildPrompt(jd,'','jd_keywords'),key);
+    let prompt2 = buildPrompt(jd,'','jd_keywords');
+    if(DEBUG_PREVIEW){
+      console.log('=== PROMPT 2 (Keywords) ===');
+      console.log(prompt2);
+      if(!confirm('Preview Prompt 2 above in console. Continue?')) throw new Error('Cancelled by user');
+    }
+    if(prov==='anthropic') txt=await callAnthropic(prompt2,key);
+    else if(prov==='openai') txt=await callOpenAI(prompt2,key);
+    else txt=await callGemini(prompt2,key);
     Object.assign(results,extractJSON(txt));
     
     // Only continue with resume-dependent steps if we have resume text
@@ -892,36 +907,60 @@ async function analyze(){
       
       // Step 3: Gap analysis
       setSt('Step 3/6: Analyzing skill gaps...');
-      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'gap'),key);
-      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'gap'),key);
-      else txt=await callGemini(buildPrompt(jd,resumeText,'gap'),key);
+      let prompt3 = buildPrompt(jd,resumeText,'gap');
+      if(DEBUG_PREVIEW){
+        console.log('=== PROMPT 3 (Gap Analysis) ===');
+        console.log(prompt3);
+        if(!confirm('Preview Prompt 3 above in console. Continue?')) throw new Error('Cancelled by user');
+      }
+      if(prov==='anthropic') txt=await callAnthropic(prompt3,key);
+      else if(prov==='openai') txt=await callOpenAI(prompt3,key);
+      else txt=await callGemini(prompt3,key);
       Object.assign(results,extractJSON(txt));
       
       await new Promise(r=>setTimeout(r,500));
       
       // Step 4: Talking points
       setSt('Step 4/6: Creating talking points...');
-      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'talking'),key);
-      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'talking'),key);
-      else txt=await callGemini(buildPrompt(jd,resumeText,'talking'),key);
+      let prompt4 = buildPrompt(jd,resumeText,'talking');
+      if(DEBUG_PREVIEW){
+        console.log('=== PROMPT 4 (Talking Points) ===');
+        console.log(prompt4);
+        if(!confirm('Preview Prompt 4 above in console. Continue?')) throw new Error('Cancelled by user');
+      }
+      if(prov==='anthropic') txt=await callAnthropic(prompt4,key);
+      else if(prov==='openai') txt=await callOpenAI(prompt4,key);
+      else txt=await callGemini(prompt4,key);
       Object.assign(results,extractJSON(txt));
       
       await new Promise(r=>setTimeout(r,500));
       
       // Step 5: Cover letter
       setSt('Step 5/6: Writing cover letter...');
-      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'cover'),key);
-      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'cover'),key);
-      else txt=await callGemini(buildPrompt(jd,resumeText,'cover'),key);
+      let prompt5 = buildPrompt(jd,resumeText,'cover');
+      if(DEBUG_PREVIEW){
+        console.log('=== PROMPT 5 (Cover Letter) ===');
+        console.log(prompt5);
+        if(!confirm('Preview Prompt 5 above in console. Continue?')) throw new Error('Cancelled by user');
+      }
+      if(prov==='anthropic') txt=await callAnthropic(prompt5,key);
+      else if(prov==='openai') txt=await callOpenAI(prompt5,key);
+      else txt=await callGemini(prompt5,key);
       Object.assign(results,extractJSON(txt));
       
       await new Promise(r=>setTimeout(r,500));
       
       // Step 6: Interview Q&A
       setSt('Step 6/6: Generating interview Q&A...');
-      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'qa'),key);
-      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'qa'),key);
-      else txt=await callGemini(buildPrompt(jd,resumeText,'qa'),key);
+      let prompt6 = buildPrompt(jd,resumeText,'qa');
+      if(DEBUG_PREVIEW){
+        console.log('=== PROMPT 6 (Interview Q&A) ===');
+        console.log(prompt6);
+        if(!confirm('Preview Prompt 6 above in console. Continue?')) throw new Error('Cancelled by user');
+      }
+      if(prov==='anthropic') txt=await callAnthropic(prompt6,key);
+      else if(prov==='openai') txt=await callOpenAI(prompt6,key);
+      else txt=await callGemini(prompt6,key);
       Object.assign(results,extractJSON(txt));
     }
     
