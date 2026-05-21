@@ -350,7 +350,7 @@ textarea::placeholder{color:var(--ink-4);font-size:13px}
 const PROVS = {
   anthropic:{name:'Claude (Anthropic)',model:'claude-sonnet-4-20250514',color:'#c96442'},
   openai:   {name:'GPT-4o (OpenAI)',   model:'gpt-5-nano',                  color:'#10a37f'},
-  gemini:   {name:'Gemini 2.0 Flash',  model:'gemini-3.1-flash-lite',         color:'#4285f4'}
+  gemini:   {name:'Gemini 3.1 Flash-Lite',  model:'gemini-3.1-flash-lite',         color:'#4285f4'}
 };
 
 let prov = localStorage.getItem('jdi_prov') || 'anthropic';
@@ -693,7 +693,122 @@ async function callOpenAI(prompt,key){
 }
 
 async function callGemini(prompt,key){
-  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],tools:[{google_search_retrieval:{}}]})});
+  // Define JSON schemas for each prompt type to ensure structured output
+  const schemas = {
+    'jd_company': {
+      type: 'object',
+      properties: {
+        company: {type: 'string'},
+        role: {type: 'string'},
+        overview: {type: 'string'},
+        reputation_score: {type: 'number'},
+        brand_score: {type: 'number'},
+        growth_score: {type: 'number'},
+        reputation_summary: {type: 'string'},
+        brand_points: {type: 'array', items: {type: 'string'}},
+        target_customers: {type: 'array', items: {type: 'string'}},
+        reach_channels: {type: 'array', items: {type: 'string'}},
+        competitors: {type: 'array', items: {type: 'string'}},
+        market_opportunity: {type: 'string'}
+      },
+      required: ['company', 'role', 'overview']
+    },
+    'jd_keywords': {
+      type: 'object',
+      properties: {
+        keywords: {type: 'array', items: {type: 'string'}}
+      },
+      required: ['keywords']
+    },
+    'gap': {
+      type: 'object',
+      properties: {
+        gap_analysis: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              type: {type: 'string', enum: ['missing', 'strong', 'partial']},
+              skill: {type: 'string'},
+              description: {type: 'string'}
+            },
+            required: ['type', 'skill', 'description']
+          }
+        }
+      },
+      required: ['gap_analysis']
+    },
+    'talking': {
+      type: 'object',
+      properties: {
+        talking_points: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              requirement: {type: 'string'},
+              myExperience: {type: 'string'},
+              talkingPoint: {type: 'string'}
+            },
+            required: ['requirement', 'myExperience', 'talkingPoint']
+          }
+        }
+      },
+      required: ['talking_points']
+    },
+    'cover': {
+      type: 'object',
+      properties: {
+        cover_letter: {type: 'string'}
+      },
+      required: ['cover_letter']
+    },
+    'qa': {
+      type: 'object',
+      properties: {
+        interview_qa: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              question: {type: 'string'},
+              answer: {type: 'string'}
+            },
+            required: ['question', 'answer']
+          }
+        }
+      },
+      required: ['interview_qa']
+    }
+  };
+
+  // Detect which mode from the prompt to use appropriate schema
+  let responseSchema = null;
+  if (prompt.includes('Extract company intelligence')) responseSchema = schemas.jd_company;
+  else if (prompt.includes('Extract key skills and keywords')) responseSchema = schemas.jd_keywords;
+  else if (prompt.includes('Analyze gaps between job requirements')) responseSchema = schemas.gap;
+  else if (prompt.includes('Create talking points')) responseSchema = schemas.talking;
+  else if (prompt.includes('Write a professional cover letter')) responseSchema = schemas.cover;
+  else if (prompt.includes('Generate likely interview questions')) responseSchema = schemas.qa;
+
+  const payload = {
+    contents: [{role: 'user', parts: [{text: prompt}]}],
+    tools: [{google_search_retrieval: {}}]
+  };
+
+  // Add structured output config if schema detected
+  if (responseSchema) {
+    payload.generationConfig = {
+      responseMimeType: 'application/json',
+      responseSchema: responseSchema
+    };
+  }
+
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${key}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
   if(r.status===400||r.status===403) throw new Error('Invalid Gemini API key.');
   if(!r.ok) throw new Error('Gemini API error '+r.status);
   const d=await r.json();
