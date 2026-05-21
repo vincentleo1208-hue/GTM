@@ -539,61 +539,22 @@ function switchTab(t){
 }
 
 function buildPrompt(jd,res,m){
-  const baseInstr=`You are a career coach and business intelligence analyst. Analyze the job description and resume provided.
-
-Respond ONLY with valid JSON. No markdown, no backticks, no preamble.`;
-
   if(m==='jd_company'){
-    return `${baseInstr}
-
-Extract company intelligence from the job description.
-
-Required JSON structure:
-{
-  "company":"Full company name",
-  "role":"Exact job title",
-  "overview":"3-sentence company description",
-  "reputation_score":7,
-  "brand_score":6,
-  "growth_score":8,
-  "reputation_summary":"2-3 sentences about company reputation",
-  "brand_points":["point1","point2","point3"],
-  "target_customers":["segment1","segment2"],
-  "reach_channels":["channel1","channel2"],
-  "competitors":["comp1","comp2"],
-  "market_opportunity":"2 sentences"
-}
+    return `You are a career coach and business intelligence analyst. Extract company intelligence from the job description. Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}`;
   }
   
   if(m==='jd_keywords'){
-    return `${baseInstr}
-
-Extract key skills and keywords from the job description.
-
-Required JSON structure:
-{
-  "keywords":["skill1","skill2","skill3","skill4","skill5","skill6","skill7","skill8"]
-}
+    return `You are a career coach. Extract key skills and keywords from the job description. Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}`;
   }
 
   if(m==='gap'){
-    return `${baseInstr}
-
-Analyze gaps between job requirements and candidate resume.
-
-Required JSON structure:
-{
-  "gap_analysis":[
-    {"type":"missing"|"strong"|"partial","skill":"skill name","description":"why it matters and candidate status"},
-    ...at least 6 items...
-  ]
-}
+    return `You are a career coach. Analyze gaps between job requirements and candidate resume. Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}
@@ -603,17 +564,7 @@ ${res}`;
   }
 
   if(m==='talking'){
-    return `${baseInstr}
-
-Create talking points matching candidate experience to job requirements.
-
-Required JSON structure:
-{
-  "talking_points":[
-    {"requirement":"job requirement","myExperience":"how candidate matches","talkingPoint":"crafted talking point"},
-    ...at least 4 items...
-  ]
-}
+    return `You are a career coach. Create talking points matching candidate experience to job requirements. Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}
@@ -623,14 +574,7 @@ ${res}`;
   }
 
   if(m==='cover'){
-    return `${baseInstr}
-
-Write a professional cover letter.
-
-Required JSON structure:
-{
-  "cover_letter":"full cover letter text (250-350 words, professional tone)"
-}
+    return `You are a career coach. Write a professional cover letter (250-350 words, professional tone). Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}
@@ -640,17 +584,7 @@ ${res}`;
   }
 
   if(m==='qa'){
-    return `${baseInstr}
-
-Generate likely interview questions and suggested answers.
-
-Required JSON structure:
-{
-  "interview_qa":[
-    {"question":"likely interview question","answer":"suggested answer leveraging candidate experience"},
-    ...at least 5 items...
-  ]
-}
+    return `You are a career coach. Generate likely interview questions and suggested answers. Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}
@@ -660,39 +594,7 @@ ${res}`;
   }
 
   // Full mode - complete analysis (fallback)
-  return `${baseInstr}
-
-Respond ONLY with valid JSON. No markdown, no backticks, no preamble.
-
-Required JSON structure:
-{
-  "company":"Full company name",
-  "role":"Exact job title",
-  "overview":"3-sentence company description",
-  "reputation_score":7,
-  "brand_score":6,
-  "growth_score":8,
-  "reputation_summary":"2-3 sentences about company reputation",
-  "brand_points":["point1","point2","point3"],
-  "target_customers":["segment1","segment2"],
-  "reach_channels":["channel1","channel2"],
-  "competitors":["comp1","comp2"],
-  "market_opportunity":"2 sentences",
-  "keywords":["skill1","skill2","skill3","skill4","skill5"],
-  "gap_analysis":[
-    {"type":"missing"|"strong"|"partial","skill":"skill name","description":"why it matters and candidate status"},
-    ...at least 5 items...
-  ],
-  "talking_points":[
-    {"requirement":"job requirement","myExperience":"how candidate matches","talkingPoint":"crafted talking point"},
-    ...at least 4 items...
-  ],
-  "cover_letter":"full cover letter text (250-350 words, professional tone)",
-  "interview_qa":[
-    {"question":"likely interview question","answer":"suggested answer leveraging candidate experience"},
-    ...at least 5 items...
-  ]
-}
+  return `You are a career coach and business intelligence analyst. Provide complete analysis. Respond ONLY with valid JSON matching the required schema. No markdown, no backticks, no preamble.
 
 Job Description:
 ${jd}
