@@ -390,7 +390,10 @@ function renderProvInfo(){
 
 function setMode(m){
   mode=m;
-  ['full','jd','resume'].forEach(id=>document.getElementById('mode-'+id).classList.toggle('active',id===m));
+  ['full','jd','resume','jd_company','jd_keywords'].forEach(id=>{
+    const el=document.getElementById('mode-'+id);
+    if(el) el.classList.toggle('active',id===m);
+  });
 }
 
 function openModal(){
@@ -509,6 +512,127 @@ function switchTab(t){
 function buildPrompt(jd,res,m){
   const baseInstr=`You are a career coach and business intelligence analyst. Analyze the job description and resume provided.
 
+Respond ONLY with valid JSON. No markdown, no backticks, no preamble.`;
+
+  if(m==='jd_company'){
+    return `${baseInstr}
+
+Extract company intelligence from the job description.
+
+Required JSON structure:
+{
+  "company":"Full company name",
+  "role":"Exact job title",
+  "overview":"3-sentence company description",
+  "reputation_score":7,
+  "brand_score":6,
+  "growth_score":8,
+  "reputation_summary":"2-3 sentences about company reputation",
+  "brand_points":["point1","point2","point3"],
+  "target_customers":["segment1","segment2"],
+  "reach_channels":["channel1","channel2"],
+  "competitors":["comp1","comp2"],
+  "market_opportunity":"2 sentences"
+}
+
+Job Description:
+${jd}`;
+  }
+  
+  if(m==='jd_keywords'){
+    return `${baseInstr}
+
+Extract key skills and keywords from the job description.
+
+Required JSON structure:
+{
+  "keywords":["skill1","skill2","skill3","skill4","skill5","skill6","skill7","skill8"]
+}
+
+Job Description:
+${jd}`;
+  }
+
+  if(m==='gap'){
+    return `${baseInstr}
+
+Analyze gaps between job requirements and candidate resume.
+
+Required JSON structure:
+{
+  "gap_analysis":[
+    {"type":"missing"|"strong"|"partial","skill":"skill name","description":"why it matters and candidate status"},
+    ...at least 6 items...
+  ]
+}
+
+Job Description:
+${jd}
+
+Candidate Resume:
+${res}`;
+  }
+
+  if(m==='talking'){
+    return `${baseInstr}
+
+Create talking points matching candidate experience to job requirements.
+
+Required JSON structure:
+{
+  "talking_points":[
+    {"requirement":"job requirement","myExperience":"how candidate matches","talkingPoint":"crafted talking point"},
+    ...at least 4 items...
+  ]
+}
+
+Job Description:
+${jd}
+
+Candidate Resume:
+${res}`;
+  }
+
+  if(m==='cover'){
+    return `${baseInstr}
+
+Write a professional cover letter.
+
+Required JSON structure:
+{
+  "cover_letter":"full cover letter text (250-350 words, professional tone)"
+}
+
+Job Description:
+${jd}
+
+Candidate Resume:
+${res}`;
+  }
+
+  if(m==='qa'){
+    return `${baseInstr}
+
+Generate likely interview questions and suggested answers.
+
+Required JSON structure:
+{
+  "interview_qa":[
+    {"question":"likely interview question","answer":"suggested answer leveraging candidate experience"},
+    ...at least 5 items...
+  ]
+}
+
+Job Description:
+${jd}
+
+Candidate Resume:
+${res}`;
+  }
+
+  // Full mode - complete analysis (fallback)
+  return `${baseInstr}
+
 Respond ONLY with valid JSON. No markdown, no backticks, no preamble.
 
 Required JSON structure:
@@ -539,32 +663,7 @@ Required JSON structure:
     {"question":"likely interview question","answer":"suggested answer leveraging candidate experience"},
     ...at least 5 items...
   ]
-}`;
-
-  if(m==='jd'){
-    return `${baseInstr}
-
-Focus on JD analysis only. Set gap_analysis, talking_points, cover_letter, and interview_qa to empty arrays/strings.
-
-Job Description:
-${jd}`;
-  }
-  
-  if(m==='resume'){
-    return `${baseInstr}
-
-Focus on resume optimization. Set company overview fields to minimal values.
-
-Job Description:
-${jd}
-
-Candidate Resume:
-${res}`;
-  }
-
-  return `${baseInstr}
-
-Provide complete analysis including all sections.
+}
 
 Job Description:
 ${jd}
@@ -617,24 +716,75 @@ async function analyze(){
   if(!key){openModal();return;}
   const jd=document.getElementById('jdInput').value.trim();
   if(jd.length<60){showErr('Please paste a more complete job description.');return;}
-  if(mode!=='jd'&&!resumeText){showErr('Please upload or paste your resume.');return;}
+  if(mode!=='full'&&mode!=='jd'&&mode!=='jd_company'&&mode!=='jd_keywords'&&!resumeText){showErr('Please upload or paste your resume.');return;}
   
   hideErr();
   document.getElementById('analyzeBtn').disabled=true;
   try{
-    setSt('Analyzing with '+PROVS[prov].name+'...');
-    const prompt=buildPrompt(jd,resumeText,mode);
-    setSt('Researching company and generating report...');
+    // Run multiple smaller API calls in sequence to avoid rate limits and large input blocks
+    const results={};
+    
+    // Step 1: Company intelligence (JD only, no resume needed)
+    setSt('Step 1/6: Extracting company intelligence...');
     let txt;
-    if(prov==='anthropic') txt=await callAnthropic(prompt,key);
-    else if(prov==='openai') txt=await callOpenAI(prompt,key);
-    else txt=await callGemini(prompt,key);
+    if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,'','jd_company'),key);
+    else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,'','jd_company'),key);
+    else txt=await callGemini(buildPrompt(jd,'','jd_company'),key);
+    Object.assign(results,extractJSON(txt));
+    
+    // Small delay between calls to avoid rate limiting
+    await new Promise(r=>setTimeout(r,500));
+    
+    // Step 2: Keywords (JD only)
+    setSt('Step 2/6: Extracting keywords...');
+    if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,'','jd_keywords'),key);
+    else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,'','jd_keywords'),key);
+    else txt=await callGemini(buildPrompt(jd,'','jd_keywords'),key);
+    Object.assign(results,extractJSON(txt));
+    
+    // Only continue with resume-dependent steps if we have resume text
+    if(resumeText&&mode!=='jd_company'&&mode!=='jd_keywords'){
+      await new Promise(r=>setTimeout(r,500));
+      
+      // Step 3: Gap analysis
+      setSt('Step 3/6: Analyzing skill gaps...');
+      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'gap'),key);
+      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'gap'),key);
+      else txt=await callGemini(buildPrompt(jd,resumeText,'gap'),key);
+      Object.assign(results,extractJSON(txt));
+      
+      await new Promise(r=>setTimeout(r,500));
+      
+      // Step 4: Talking points
+      setSt('Step 4/6: Creating talking points...');
+      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'talking'),key);
+      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'talking'),key);
+      else txt=await callGemini(buildPrompt(jd,resumeText,'talking'),key);
+      Object.assign(results,extractJSON(txt));
+      
+      await new Promise(r=>setTimeout(r,500));
+      
+      // Step 5: Cover letter
+      setSt('Step 5/6: Writing cover letter...');
+      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'cover'),key);
+      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'cover'),key);
+      else txt=await callGemini(buildPrompt(jd,resumeText,'cover'),key);
+      Object.assign(results,extractJSON(txt));
+      
+      await new Promise(r=>setTimeout(r,500));
+      
+      // Step 6: Interview Q&A
+      setSt('Step 6/6: Generating interview Q&A...');
+      if(prov==='anthropic') txt=await callAnthropic(buildPrompt(jd,resumeText,'qa'),key);
+      else if(prov==='openai') txt=await callOpenAI(buildPrompt(jd,resumeText,'qa'),key);
+      else txt=await callGemini(buildPrompt(jd,resumeText,'qa'),key);
+      Object.assign(results,extractJSON(txt));
+    }
     
     setSt('Processing results...');
-    const result=extractJSON(txt);
     hideSt();
-    renderResults(result,mode,prov);
-    saveHist(result,mode,prov,jd,resumeText);
+    renderResults(results,mode,prov);
+    saveHist(results,mode,prov,jd,resumeText);
     document.getElementById('emptyState').style.display='none';
     document.getElementById('resultsContainer').style.display='block';
     switchTab('overview');
